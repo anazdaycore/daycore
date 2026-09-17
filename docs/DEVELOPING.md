@@ -88,25 +88,40 @@ make core-min-api                                   # 重算 core 的最低兼�
 拒绝。两条都实测过）。
 
 ```bash
+make core-min-api                                   # 先重算版本号：core 的版本 = 兼容的最低 API 版本
 make core-dev                                       # 四端先指向工作区的 packages/core
 # 改 packages/core，四端 npm run build 验它
 cd packages/core && git commit && git push && git tag vX.Y.Z && git push origin vX.Y.Z
 
-# 四端各自：改 pin **并重生成 lock**，然后 commit + push
+# 四端各自：改 pin，并在 workspace 之外**增量**重解析 lock，然后 commit + push
 for a in ting zhiyu liuli liuli-classic; do (
   cd web/$a
   # 把 package.json 的 @daycore/core 改成 …#vX.Y.Z
-  rm -f package-lock.json && npm install     # ⚠️ 这一行不能省，见下
-  git commit -am '钉 core vX.Y.Z' && git push
+  tmp=$(mktemp -d) && cp package.json package-lock.json "$tmp/"
+  ( cd "$tmp" && npm install --package-lock-only --allow-git=all )
+  cp "$tmp/package-lock.json" package-lock.json  # 只该动两条：依赖声明 + node_modules/@daycore/core
+  git commit -am '钉 @daycore/core vX.Y.Z' && git push origin HEAD:refs/heads/main
 ); done
 
-rm -rf node_modules package-lock.json && npm install # 超级仓：让 npm 重新解析 tag
-git add packages/core web/* && git commit            # bump 五个 gitlink
+npm install --allow-git=all                                  # 超级仓：重解析四份嵌套 core
+git add packages/core web/* package-lock.json && git commit  # bump 五个 gitlink
 ```
+
+⚠️ **这套流程的三个坑（2026-09-17 实跑修正）**：
+
+1. **不要 `rm -f package-lock.json && npm install`。** 那是上一版文档的写法，会把整棵
+   依赖树重新解析 —— 实测 rollup / vitest / @types/node 等 **51 条无关依赖**跟着升级。
+   发布要的是「只动 core 这一条」，所以保留原 lock 做**增量**重解析
+   （`--package-lock-only`），改完核对 diff 恰好两条。
+2. **lock 必须在 workspace 之外生成。** 在 `web/$a` 里跑 `npm install`，npm 认的是
+   workspace 根，它只写**根** `package-lock.json`；子仓那份不但不会更新，**删了就再也
+   不会出现**。所以上面用 `mktemp -d` 在树外跑。
+3. **npm ≥ 12 默认禁 git 依赖**（`allow-git=none`），不加 `--allow-git=all` 会直接死在
+   `EALLOWGIT`。上一版流程写于 npm 12 之前，照着跑必然失败。
 
 ⚠️ **只改 `package.json` 不重生成 `package-lock.json` 是不够的，而且症状只在别人
 那边出现。** lock 记的是解析后的 **commit**；改了 pin 不重生成，独立 clone 的人
-拿到的仍然是旧 core（`package.json` 说 v2.2.0，lock 说切仓当天那个 commit，npm
+拿到的仍然是旧 core（`package.json` 说 v2.4.0，lock 说上一个 tag 那个 commit，npm
 听 lock 的），`tsc` 报 `has no exported member`。
 
 超级仓里发现不了 —— 那边跑的是**根上**那份 lock，各仓自己的 lock 在 workspace 下
