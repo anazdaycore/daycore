@@ -151,6 +151,7 @@ go test -race ./internal/adapters/ ./internal/weather/
 | 有哪些 HTTP 路由、各在哪个文件 | [`docs/API_SURFACE.md`](docs/API_SURFACE.md)（生成的） |
 | 端无关的产品语义（时间三层、提案、注意力阶梯、默契） | [`docs/EXPERIENCE_CORE.md`](docs/EXPERIENCE_CORE.md) |
 | 战略认知、商业化方案、陪伴边界、全功能审计（讨论注入，待裁决后并入 ROADMAP/EXPERIENCE_CORE） | [`docs/STRATEGY.md`](docs/STRATEGY.md) |
+| **PWA 与家庭模式**（计划书，未开工：可安装/离线/推送 + 家庭组与联动） | [`docs/PWA_AND_FAMILY_MODE.md`](docs/PWA_AND_FAMILY_MODE.md) |
 | 加路由/工具/模型/语言的分步骨架、开发命令 | [`docs/DEVELOPING.md`](docs/DEVELOPING.md) |
 | **别人照着实现什么**（存储 / provider / 前端适配层） | [`docs/specs/`](docs/specs/README.md) |
 | API 契约 | [`api/openapi.yaml`](api/openapi.yaml)（**生成物**，源在 [`api/spec/`](api/spec/README.md)）+ [`api/FRONTEND_HANDOFF.md`](api/FRONTEND_HANDOFF.md) |
