@@ -286,3 +286,43 @@ func TestSessionInitLearnsTheDeviceTimezone(t *testing.T) {
 		t.Errorf("垃圾时区覆盖了好值：%q", got)
 	}
 }
+
+// 初版（琉璃初版）的陪伴走的是**异步**端点：core 的 `askCompanion` 签名里没有 timezone
+// 参数，请求体只有 threadId 与 message。所有者碰到的正是这条 —— 所以它单独有一条测试，
+// 而不是靠 streaming 那条的修复顺带覆盖。
+func TestAsyncCompanionClockIsTheSessionsZone(t *testing.T) {
+	f := clockServer(t)
+	ctx := context.Background()
+
+	// 异步端点要求 threadId 属于本会话（否则 404 thread_not_found）。
+	if _, err := f.s.store.Chats().CreateThread(ctx, &domain.ChatThread{ID: "t1", SessionID: f.sid, Title: "t"}); err != nil {
+		t.Fatal(err)
+	}
+	rec := httptest.NewRecorder()
+	req := httptest.NewRequest("POST", versionPath("/api/ai/companion/async"),
+		strings.NewReader(`{"threadId":"t1","message":"现在几点了？"}`))
+	req.Header.Set("Content-Type", "application/json")
+	req = req.WithContext(withSessionID(req.Context(), f.sid))
+	f.s.handleAICompanionAsync(rec, req)
+	if rec.Code != http.StatusOK && rec.Code != http.StatusAccepted {
+		t.Fatalf("async companion: %d %s", rec.Code, rec.Body.String())
+	}
+
+	// 模型调用发生在 GoTracked 的 goroutine 里 —— 等它，否则捕获到的还是空的。
+	wctx, cancel := context.WithTimeout(ctx, 10*time.Second)
+	defer cancel()
+	if err := f.s.WaitBackground(wctx); err != nil {
+		t.Fatalf("后台的模型调用没能在 10s 内结束：%v", err)
+	}
+
+	body := firstModelRequest(t, f)
+	if !strings.Contains(body, "(timezone "+f.zone+")") {
+		t.Errorf("异步陪伴没把读者的时区交给模型（会话自己没时区 → 应当落到部署默认 %s）", f.zone)
+	}
+	if !strings.Contains(body, "today is "+f.localDate) {
+		t.Errorf("异步陪伴交给模型的不是读者的今天（%s）", f.localDate)
+	}
+	if strings.Contains(body, "today is "+f.utcDate) {
+		t.Errorf("异步陪伴交给模型的是 UTC 的今天（%s）—— 这就是所有者碰到的那条", f.utcDate)
+	}
+}
