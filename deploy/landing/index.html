@@ -1,0 +1,78 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Daycore — 四端门厅</title>
+<style>
+*{box-sizing:border-box;margin:0}
+:root{--bg:#0c1017;--ink:#eaeef6;--ink2:#9aa6ba;--ink3:#5d6a80;--line:rgba(234,238,246,.09);--card:#111725;--liuli:#57b6ff;--zhiyu:#f2a541;--ting:#59d0b2;--liuli0:#a98bff}
+body{font-family:-apple-system,"SF Pro Text","PingFang SC","Hiragino Sans GB","Microsoft YaHei",sans-serif;background:radial-gradient(60vw 40vh at 18% 0%,rgba(87,182,255,.10),transparent 60%),radial-gradient(60vw 40vh at 82% 8%,rgba(242,165,65,.09),transparent 60%),radial-gradient(70vw 50vh at 50% 110%,rgba(89,208,178,.10),transparent 62%),var(--bg);color:var(--ink);min-height:100vh;display:flex;flex-direction:column;align-items:center;padding:56px 20px 40px;-webkit-font-smoothing:antialiased}
+a{color:var(--ink2);text-decoration:none}a:hover{color:var(--ink)}
+.wordmark{font-size:13px;font-weight:800;letter-spacing:.42em;color:var(--ink3)}
+h1{font-size:clamp(26px,4vw,38px);font-weight:760;letter-spacing:-.02em;margin-top:14px;text-align:center}
+.sub{margin-top:10px;font-size:14px;color:var(--ink2);text-align:center;max-width:560px;line-height:1.7;text-wrap:pretty}
+.sub b{color:var(--ink);font-weight:650}
+.grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(280px,1fr));gap:18px;width:min(1060px,100%);margin-top:44px}
+.app{position:relative;display:flex;flex-direction:column;background:var(--card);border:1px solid var(--line);border-radius:22px;padding:22px 22px 20px;transition:transform .25s cubic-bezier(.22,.9,.24,1),border-color .25s,box-shadow .25s;color:var(--ink)}
+.app:hover{transform:translateY(-4px);border-color:color-mix(in srgb,var(--ac) 45%,transparent);box-shadow:0 24px 60px rgba(0,0,0,.45)}
+.app .code{font-size:10.5px;font-weight:800;letter-spacing:.3em;color:var(--ac)}
+.app h2{font-size:21px;font-weight:750;margin-top:8px}
+.app h2 span{font-size:13px;color:var(--ink3);font-weight:550;margin-left:8px}
+.app .one{font-size:13px;color:var(--ink2);margin-top:8px;line-height:1.65;min-height:64px;text-wrap:pretty}
+.app .diff{font-size:11.5px;color:var(--ink3);margin-top:8px;line-height:1.6;border-left:2px solid color-mix(in srgb,var(--ac) 50%,transparent);padding-left:9px;text-wrap:pretty}
+.sk{position:relative;height:120px;margin:18px 0 16px;border-radius:14px;background:color-mix(in srgb,var(--ac) 6%,transparent);border:1px dashed color-mix(in srgb,var(--ac) 25%,transparent);overflow:hidden}
+.sk i{position:absolute;border-radius:4px;background:color-mix(in srgb,var(--ac) 45%,transparent)}
+.sk i.d{background:none;border:1.5px dashed color-mix(in srgb,var(--ac) 55%,transparent)}
+.sk i.line{background:color-mix(in srgb,var(--ac) 22%,transparent)}
+.go{margin-top:auto;display:flex;align-items:center;justify-content:space-between;font-size:13px;font-weight:700;color:var(--ac)}
+.go .arr{transition:transform .2s}
+.app:hover .arr{transform:translateX(4px)}
+.note{margin-top:34px;font-size:11.5px;color:var(--ink3);text-align:center;max-width:640px;line-height:1.8;text-wrap:pretty}
+.note b{color:var(--ink2)}
+.foot{margin-top:26px;display:flex;gap:22px;font-size:11.5px;color:var(--ink3)}
+@media (max-width:640px){body{padding:36px 16px 32px}}
+</style>
+</head>
+<body>
+<div class="wordmark">DAYCORE</div>
+<h1>一套账本，四种活法</h1>
+<p class="sub">替不擅长规划的人省心的 AI 日程管家。下面是 <b>四个范式级不同的前端</b>——去掉颜色和文字，仅凭骨架也认得出谁是谁。它们消费同一套契约、共用同一份账本：在任一端接受的提案、撤销的动作，其余三端都看得见。</p>
+<div class="grid">
+<a class="app" href="/liuli/" style="--ac:var(--liuli)">
+<span class="code">LIULI · 长卷</span>
+<h2>琉璃<span>玻璃拟态 · 时间画布</span></h2>
+<div class="one">时间是一块连续的空间画布，你在地图上看自己的日子。五席书签，今天居中放大；拖起一个块，四个引力井呼吸发光。</div>
+<div class="diff">主表面 = 可拖拽的垂直时间轴（捏合到周为止）；提案投成轴上的虚影；四缘抽屉：资料·足迹·展望·伙伴。</div>
+<div class="sk"><i style="left:14px;top:10px;bottom:10px;width:2px"></i><i style="left:24px;top:12px;width:44%;height:16px"></i><i class="d" style="left:24px;top:34px;width:58%;height:20px"></i><i style="left:24px;top:60px;width:38%;height:14px"></i><i class="d" style="left:24px;top:80px;width:50%;height:16px;opacity:.55"></i><i class="line" style="right:12px;top:14px;width:56px;height:64px;border-radius:10px"></i><i style="left:32%;bottom:8px;width:36%;height:12px;border-radius:8px"></i></div>
+<div class="go">进入长卷<span class="arr">→</span></div>
+</a>
+<a class="app" href="/zhiyu/" style="--ac:var(--zhiyu)">
+<span class="code">ZHIYU · 顺流</span>
+<h2>纸屿<span>纸感手帐 · 叙事流</span></h2>
+<div class="one">一天是一篇由你和小禾共同书写的日志。向上滚是过去，向下滚是预告，滚动本身就是时间旅行。</div>
+<div class="diff">主表面 = 单条账本渲染流（不是聊天史）；足迹与今天是同一条流的不同滚动位置；导航退化为「回到现在」。</div>
+<div class="sk"><i style="left:18px;top:12px;bottom:12px;width:2px;border-radius:2px"></i><i class="line" style="left:30px;top:12px;width:60%;height:10px"></i><i class="line" style="left:30px;top:28px;width:44%;height:10px"></i><i style="left:30px;top:46px;width:66%;height:16px"></i><i style="left:12px;top:70px;right:12px;height:2px;border-radius:2px"></i><i class="d" style="left:30px;top:80px;width:58%;height:14px"></i><i class="line" style="left:30px;top:100px;width:40%;height:10px"></i></div>
+<div class="go">进入顺流<span class="arr">→</span></div>
+</a>
+<a class="app" href="/ting/" style="--ac:var(--ting)">
+<span class="code">TING · 此刻</span>
+<h2>汀<span>水边夜色 · 单件流</span></h2>
+<div class="one">画面永远只回答一个问题：现在做什么。上滑送走一件事，提案整屏浮上来，一滑接受、一滑推开。</div>
+<div class="diff">主表面 = 全屏一张当前块卡，下一件在底部露头；概览被刻意折叠成下拉抽屉——是抽屉，不是家。</div>
+<div class="sk"><i style="left:16%;top:14px;right:16%;height:64px;border-radius:12px"></i><i class="line" style="left:26%;bottom:22px;right:26%;height:14px;border-radius:8px"></i><i class="d" style="left:40%;bottom:6px;right:40%;height:8px;border-radius:6px"></i></div>
+<div class="go">进入此刻<span class="arr">→</span></div>
+</a>
+<a class="app" href="/liuli-classic/" style="--ac:var(--liuli0)">
+<span class="code">LIULI · 初版</span>
+<h2>琉璃初版<span>常规范式 · 页面制</span></h2>
+<div class="one">最老实的那一版：底部标签栏、今天／资料／心情／伙伴四个页面，一屏一件事。没有画布，也没有手势——所有能力都摆在明面上。</div>
+<div class="diff">主表面 = 纵向卡片列表 + 固定 Tab 导航；提案是列表里的一张待批卡。作为对照组看清另外三个「非常规」到底非常规在哪。</div>
+<div class="sk"><i style="left:12px;top:10px;width:34%;height:12px"></i><i class="line" style="left:12px;top:30px;right:12px;height:26px;border-radius:8px"></i><i class="d" style="left:12px;top:62px;right:12px;height:26px;border-radius:8px"></i><i style="left:12px;bottom:10px;right:12px;height:2px"></i><i style="left:14%;bottom:14px;width:12%;height:8px;border-radius:4px"></i><i class="line" style="left:34%;bottom:14px;width:12%;height:8px;border-radius:4px"></i><i class="line" style="left:54%;bottom:14px;width:12%;height:8px;border-radius:4px"></i><i class="line" style="left:74%;bottom:14px;width:12%;height:8px;border-radius:4px"></i></div>
+<div class="go">进入初版<span class="arr">→</span></div>
+</a>
+</div>
+<p class="note">四个端共用同一个账号（同一域名下的会话）：在任一端说一句、加一个块，换另一段刷新即可见。<b>铁律不变</b>：不变红、不积债、任何 AI 动作 3 秒内可撤。</p>
+<div class="foot"><a href="/admin/">运营台</a><a href="/api/version">API 版本</a></div>
+</body>
+</html>
