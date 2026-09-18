@@ -33,6 +33,7 @@ import (
 	"testing"
 	"time"
 
+	"daycore/internal/auth"
 	"daycore/internal/domain"
 )
 
@@ -246,4 +247,42 @@ func TestPlanBlocksAttachToTheSameDayThePromptWasTold(t *testing.T) {
 		}
 	}
 	_ = context.Background()
+}
+
+// 首次接触那一次也要能用：POST /api/session/init 收下设备时区，记进会话。
+//
+// ⚠️ 这一条是整套时区链的**入口**。四端的前端今天都不送时区，所以真实会话在没有它
+// 之前只能靠部署默认 —— 而部署默认对一个不在运营商那个时区的用户就是错的。
+func TestSessionInitLearnsTheDeviceTimezone(t *testing.T) {
+	s, sid := newAgentTestServer(t)
+	s.cookies = auth.NewCookieSigner("test-secret") // 处理器要下发 dc_sid cookie
+
+	initWith := func(body string) *httptest.ResponseRecorder {
+		t.Helper()
+		rec := httptest.NewRecorder()
+		req := httptest.NewRequest("POST", versionPath("/api/session/init"), strings.NewReader(body))
+		req.Header.Set("Content-Type", "application/json")
+		req = req.WithContext(withSessionID(req.Context(), sid))
+		s.handleSessionInit(rec, req)
+		return rec
+	}
+
+	if rec := initWith(`{"timezone":"America/Chicago"}`); rec.Code != http.StatusOK {
+		t.Fatalf("session init: %d %s", rec.Code, rec.Body.String())
+	}
+	prefs := s.sessionPrefs(context.Background(), sid)
+	if prefs.Timezone != "America/Chicago" {
+		t.Errorf("首次接触的时区没记下来：%q", prefs.Timezone)
+	}
+	if prefs.TimezoneSource != TZSourceDetected {
+		t.Errorf("源应当是 %q（设备提示），实际 %q", TZSourceDetected, prefs.TimezoneSource)
+	}
+
+	// 一个不是时区的字符串不许把已经学到的值冲掉，也不许让请求失败。
+	if rec := initWith(`{"timezone":"Not/AZone"}`); rec.Code != http.StatusOK {
+		t.Errorf("垃圾时区让 session init 失败了：%d %s", rec.Code, rec.Body.String())
+	}
+	if got := s.sessionPrefs(context.Background(), sid).Timezone; got != "America/Chicago" {
+		t.Errorf("垃圾时区覆盖了好值：%q", got)
+	}
 }
