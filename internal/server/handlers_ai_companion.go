@@ -222,7 +222,8 @@ func (s *Server) companionSystemPrompt(ctx context.Context, sid, locale, tz, nam
 	// now that the caller resolves the zone from the session instead of forwarding
 	// whatever the client happened to send — see handleAICompanion. The old
 	// "tz == "" → UTC" here was not a last resort, it was the common case: the
-	// frontends' companion call does not send a zone at all.
+	// async companion's caller sends no zone at all (初版的陪伴走 /api/ai/companion/
+	// async，而 core 的 askCompanion 没有 timezone 参数；长卷与纸屿走 streaming，会带上)。
 	loc := resolveLocation(tz)
 	now := time.Now().In(loc)
 	date := now.Format("2006-01-02")

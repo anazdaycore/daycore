@@ -440,7 +440,7 @@ TimezoneSource  "user"（设置页）或 "detected"（客户端提示）
 
 ### AI 端点的钟表：提示是提示，不是答案（2026-09-18）
 
-ζ-4 把时区做成了每会话的值，但 **AI 端点当时并没有读它**：companion handler 把请求体里的 `timezone` 直接喂给提示词构造器。客户端不送时（四端的前端就是这样 —— `askCompanion` 根本不带这个字段）`time.LoadLocation("")` 失败，而兜底写的是 `time.UTC`。
+ζ-4 把时区做成了每会话的值，但 **AI 端点当时并没有读它**：companion handler 把请求体里的 `timezone` 直接喂给提示词构造器。客户端不送时（初版的陪伴就是这样：它走异步端点，而 core 的 `askCompanion` 签名里没有 timezone 参数；长卷与纸屿走 streaming，会带上）`time.LoadLocation("")` 失败，而兜底写的是 `time.UTC`。
 
 症状是所有者亲手碰到的：芝加哥 23:44 问「现在几点了」，陪伴回答「都四点四十了，你是还没睡？」—— 那是 UTC 的 04:44。
 
