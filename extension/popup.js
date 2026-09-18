@@ -109,7 +109,7 @@ function toCSV(header, rows) {
 
 pushBtn.addEventListener("click", async () => {
   if (!exportData) return;
-  const { daycoreURL = "http://localhost:8080", importToken = "" } =
+  const { daycoreURL = DAYCORE_DEFAULT_URL, importToken = "" } =
     await chrome.storage.sync.get(["daycoreURL", "importToken"]);
   if (!importToken) {
     setStatus(t("pushNoToken"), "error");

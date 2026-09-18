@@ -17,7 +17,7 @@ const savedEl = document.getElementById("saved");
 const saveBtn = document.getElementById("save");
 const testBtn = document.getElementById("test");
 
-const DEFAULT_URL = "http://localhost:8080";
+const DEFAULT_URL = DAYCORE_DEFAULT_URL; // single source: config.js
 
 chrome.storage.sync
   .get({ daycoreURL: DEFAULT_URL, importToken: "", customDomains: [] })
