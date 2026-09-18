@@ -1,17 +1,41 @@
 # External capability sources (weather / search / channels).
-# The built-in defaults are listed here so they are writable from the console
-# instead of being hardcoded fallbacks. Query-type sources use format: http;
-# channel-type (format: ws/http/exec) is the cordis extension surface.
-providers:
+#
+# Shape: ONE LIST PER KIND — `weather:` / `search:` / `channels:`, each a list
+# of entries. `format: builtin` + `impl: <registered driver>` picks something
+# compiled in; `id` is YOUR name for the entry (it is what the model's tool
+# enum and the console show, and what WEATHER_PROVIDER refers to).
+#
+# Registered impl names in this build:
+#   weather  open-meteo | openweathermap | qweather | wttr
+#   search   duckduckgo | tavily
+# `format: http` + `base_url` is the adapter path; `format: exec` is not
+# implemented yet. See docs/specs/provider-protocol.md.
+#
+# ⚠️ This file is BOOT layer: it is read once at startup and the drivers are
+# built from it, so the console NEVER writes it. The console-editable half
+# (enabled / description / approved) lives in the provider_overrides table.
+#
+# ⚠️ Parsing is STRICT and all-or-nothing: one unknown key and the WHOLE file is
+# ignored (a warning, not a failure) and the built-in defaults are used instead
+# — so a typo here silently costs you every setting in it. In particular there
+# is NO `type:` field; the list you put an entry under IS its type.
+#
+# A missing file is not an error: it means "use the defaults".
+
+weather:
   - id: open-meteo
-    type: weather
     format: builtin
+    impl: open-meteo
     enabled: true
   - id: wttr
-    type: weather
     format: builtin
+    impl: wttr
     enabled: true
-  - id: ddg
-    type: search
+
+search:
+  - id: duckduckgo
     format: builtin
+    impl: duckduckgo
     enabled: true
+
+# channels: []   # format: ws/http (OneBot) — configured per-deployment
