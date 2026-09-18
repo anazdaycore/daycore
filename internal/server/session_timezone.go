@@ -148,6 +148,25 @@ func (s *Server) noteClientTimezone(ctx context.Context, sid, tz string) {
 	s.saveSessionTimezone(ctx, sid, prefs)
 }
 
+// aiClockTimezone resolves the zone an AI handler must build its clock from: the
+// session's own value, with the client's device hint folded in first.
+//
+// ⚠️ ONE entry point rather than "call noteClientTimezone, then remember to read
+// sessionTimezone". The defect this replaces was exactly a handler that recorded
+// the hint and then handed the RAW request field to the prompt builders, so a
+// client that sent no zone got time.LoadLocation("") and the fallback in
+// companionSystemPrompt was time.UTC: a reader in Chicago at 23:44 was told it was
+// 04:44 — the next day, in a zone nobody in that conversation was in. It also
+// silently overrode a settings-page choice, so someone who keeps their schedule on
+// home time lost it whenever their device reported another zone.
+//
+// Both failure modes are the same mistake — treating "what the client sent" as
+// the answer instead of a hint — so they are closed in one place.
+func (s *Server) aiClockTimezone(ctx context.Context, sid, clientHint string) string {
+	s.noteClientTimezone(ctx, sid, clientHint)
+	return s.sessionTimezone(ctx, sid)
+}
+
 // saveSessionTimezone persists prefs and re-arms the session's cron entries.
 func (s *Server) saveSessionTimezone(ctx context.Context, sid string, prefs SessionPrefs) {
 	raw, err := json.Marshal(prefs)

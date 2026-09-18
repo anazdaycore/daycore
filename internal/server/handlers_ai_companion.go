@@ -62,8 +62,12 @@ func (s *Server) handleAICompanion(w http.ResponseWriter, r *http.Request) {
 	// The device is the only thing that knows which zone it is in, so this is a
 	// hint we accept rather than context we refuse — see session_timezone.go for
 	// why that is not a hole in "never trust client-supplied context".
-	s.noteClientTimezone(r.Context(), sid, body.Timezone)
 	s.noteClientLocation(r.Context(), sid, body.Location)
+	// ⚠️ Every clock below is the SESSION's, resolved once, here — the request field
+	// is a hint that has just been folded in, never the answer. See aiClockTimezone
+	// for the two failures that closes: a client that sends no zone used to hand the
+	// model UTC, and a client that sent one used to overrule the settings page.
+	tz := s.aiClockTimezone(r.Context(), sid, body.Timezone)
 	atts, err := s.resolveAttachments(r.Context(), sid, body.AttachmentIDs)
 	if err != nil {
 		s.writeAttachmentErr(w, r, "aICompanion", err)
@@ -81,13 +85,13 @@ func (s *Server) handleAICompanion(w http.ResponseWriter, r *http.Request) {
 	// otherwise fall back to client-uploaded conversationHistory (anonymous).
 	if body.ThreadID != "" {
 		var err error
-		messages, err = s.buildCompanionMessages(ctx, sid, body.ThreadID, locale, body.Timezone, name, body.Message, nil)
+		messages, err = s.buildCompanionMessages(ctx, sid, body.ThreadID, locale, tz, name, body.Message, nil)
 		if err != nil {
 			s.writeErrL(w, s.requestLocale(r), http.StatusInternalServerError, "internal", "err.aICompanion.internal")
 			return
 		}
 	} else {
-		sys, err := s.companionSystemPrompt(ctx, sid, locale, body.Timezone, name)
+		sys, err := s.companionSystemPrompt(ctx, sid, locale, tz, name)
 		if err != nil {
 			s.writeErrL(w, s.requestLocale(r), http.StatusInternalServerError, "internal", "err.aICompanion.internal")
 			return
@@ -101,7 +105,7 @@ func (s *Server) handleAICompanion(w http.ResponseWriter, r *http.Request) {
 			messages = append(messages, ai.Message{Role: safeRole(m.Role), Content: m.Content})
 		}
 		messages = append(messages, ai.Message{Role: ai.RoleUser, Content: body.Message})
-		messages = s.maybeCompress(ctx, sid, "", locale, body.Timezone, name, messages)
+		messages = s.maybeCompress(ctx, sid, "", locale, tz, name, messages)
 	}
 	attachPartsToLastUser(messages, s.attachmentParts(ctx, s.catalog.DefaultChat(), locale, atts))
 
@@ -114,7 +118,7 @@ func (s *Server) handleAICompanion(w http.ResponseWriter, r *http.Request) {
 	rc := http.NewResponseController(w)
 	rc.Flush()
 
-	answer := s.runCompanionAgent(ctx, sseSender{w: w, rc: rc}, r, s.catalog.DefaultChat(), sid, locale, body.Timezone, messages, true)
+	answer := s.runCompanionAgent(ctx, sseSender{w: w, rc: rc}, r, s.catalog.DefaultChat(), sid, locale, tz, messages, true)
 
 	// Persist the turn to the server-side thread so threadId multi-turn context
 	// actually accumulates across requests. Messages carry sid, so a stray
@@ -214,10 +218,12 @@ func (s *Server) companionSystemPrompt(ctx context.Context, sid, locale, tz, nam
 	}
 
 	// L3: data context (clock, plans, memory, weather, assignments, rules, moods).
-	loc, err := time.LoadLocation(tz)
-	if err != nil || tz == "" {
-		loc = time.UTC
-	}
+	// ⚠️ resolveLocation keeps UTC as the LAST resort, and that is all it may be
+	// now that the caller resolves the zone from the session instead of forwarding
+	// whatever the client happened to send — see handleAICompanion. The old
+	// "tz == "" → UTC" here was not a last resort, it was the common case: the
+	// frontends' companion call does not send a zone at all.
+	loc := resolveLocation(tz)
 	now := time.Now().In(loc)
 	date := now.Format("2006-01-02")
 	weekday := ai.WeekdayName(now, locale)

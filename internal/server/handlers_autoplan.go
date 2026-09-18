@@ -67,10 +67,7 @@ func (s *Server) handleAIAutoPlan(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	var body struct {
-		Date         string `json:"date"`
-		Weekday      string `json:"weekday"`
-		Time         string `json:"time"`
-		Timezone     string `json:"timezone"`
+		clientClock
 		From         string `json:"from"`
 		To           string `json:"to"`
 		Instructions string `json:"instructions"`
@@ -88,13 +85,14 @@ func (s *Server) handleAIAutoPlan(w http.ResponseWriter, r *http.Request) {
 
 	locale := s.requestLocale(r)
 
-	// Fill in "now" from the requested timezone when the client sent nothing.
-	loc := time.UTC
-	if body.Timezone != "" {
-		if l, err := time.LoadLocation(body.Timezone); err == nil {
-			loc = l
-		}
-	}
+	// Fill in "now" from the SESSION's clock when the client sent nothing.
+	// ⚠️ This used to start at time.UTC and consult only the request field, so a
+	// client that sends no zone had "today" drawn in UTC — the same defect the
+	// companion's clock had, one layer down. dc is the same value the prompt is
+	// built from further below, so the range and the prompt cannot disagree.
+	dc := s.clockContext(r.Context(), sid, body.clientClock, locale)
+	tz := dc.Timezone
+	loc := resolveLocation(tz)
 	now := time.Now().In(loc)
 	if body.Date == "" {
 		body.Date = now.Format("2006-01-02")
@@ -197,7 +195,7 @@ func (s *Server) handleAIAutoPlan(w http.ResponseWriter, r *http.Request) {
 	}
 
 	// ── render + call the model ──────────────────────────────────────────
-	dc := ai.BuildDateContext(body.Date, body.Weekday, body.Time, body.Timezone, s.requestLocale(r))
+	dc = s.clockContext(r.Context(), sid, body.clientClock, s.requestLocale(r))
 	sys, err := s.prompts.Render(ctx, ai.PromptAutoPlan, locale, ai.AutoPlanData{
 		Date: dc.Date, Weekday: dc.Weekday, Time: dc.Time, Timezone: dc.Timezone,
 		RelativeDateMap: dc.RelativeDateMap,
@@ -246,7 +244,7 @@ func (s *Server) handleAIAutoPlan(w http.ResponseWriter, r *http.Request) {
 	}
 
 	// ── merge new auto blocks with survivors and persist ─────────────────
-	newBlocks, warnings := parseAutoBlocks(result["blocks"], from, to, body.Timezone)
+	newBlocks, warnings := parseAutoBlocks(result["blocks"], from, to, tz)
 	note, _ := result["note"].(string)
 
 	plans := []domain.DayPlan{}

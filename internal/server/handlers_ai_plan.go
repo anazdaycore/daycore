@@ -19,6 +19,39 @@ func init() {
 }
 
 // POST /api/ai/plan-text — natural language → structured day plan (JSON).
+// clientClock is the wall-clock the planned-AI endpoints accept from a client.
+//
+// ⚠️ Named and embedded rather than repeated inline three times: the fill-in step
+// below has to apply to all three identically, and three anonymous structs is how
+// one of them quietly stops being filled.
+type clientClock struct {
+	Date     string `json:"date"`
+	Weekday  string `json:"weekday"`
+	Time     string `json:"time"`
+	Timezone string `json:"timezone"`
+}
+
+// clockContext resolves the zone (session first, the client's hint folded in) and
+// fills any missing wall-clock field from the session's own clock.
+//
+// ⚠️ The client owns the clock when it sends one — only the device knows which day
+// the reader means. When it sends NOTHING, the old path handed BuildDateContext an
+// empty date, and parseLocalDate resolves that to UTC's today: a reader at 20:00 in
+// Chicago asked for "today" and was handed tomorrow, because in UTC it already was.
+func (s *Server) clockContext(ctx context.Context, sid string, c clientClock, locale string) ai.DateContext {
+	tz := s.aiClockTimezone(ctx, sid, c.Timezone)
+	date, weekday, clock := c.Date, c.Weekday, c.Time
+	if date == "" {
+		now := time.Now().In(resolveLocation(tz))
+		date, weekday, clock = now.Format("2006-01-02"), ai.WeekdayName(now, locale), now.Format("15:04")
+	} else if weekday == "" {
+		if d, err := time.Parse("2006-01-02", date); err == nil {
+			weekday = ai.WeekdayName(d, locale)
+		}
+	}
+	return ai.BuildDateContext(date, weekday, clock, tz, locale)
+}
+
 func (s *Server) handleAIPlanText(w http.ResponseWriter, r *http.Request) {
 	// Session first, then rate limit. These three were rate-limited only, which
 	// made the most expensive endpoints in the product — two of them vision —
@@ -29,7 +62,8 @@ func (s *Server) handleAIPlanText(w http.ResponseWriter, r *http.Request) {
 	//
 	// Safe to add: `sid` appears nowhere in this file — none of the three ever
 	// touched the session, so nothing depended on anonymous access.
-	if _, ok := s.requireSession(w, r); !ok {
+	sid, ok := s.requireSession(w, r)
+	if !ok {
 		return
 	}
 	if !s.requireAI(w, r) {
@@ -39,11 +73,8 @@ func (s *Server) handleAIPlanText(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	var body struct {
-		Description   string `json:"description"`
-		Date          string `json:"date"`
-		Weekday       string `json:"weekday"`
-		Time          string `json:"time"`
-		Timezone      string `json:"timezone"`
+		Description string `json:"description"`
+		clientClock
 		TargetDate    string `json:"targetDate"`
 		TargetWeekday string `json:"targetWeekday"`
 	}
@@ -65,7 +96,7 @@ func (s *Server) handleAIPlanText(w http.ResponseWriter, r *http.Request) {
 	ctx, cancel := context.WithTimeout(r.Context(), s.runtime().AIRequestTimeout)
 	defer cancel()
 
-	dc := ai.BuildDateContext(body.Date, body.Weekday, body.Time, body.Timezone, s.requestLocale(r))
+	dc := s.clockContext(r.Context(), sid, body.clientClock, s.requestLocale(r))
 	sys, err := s.prompts.Render(ctx, ai.PromptDayPlanText, s.requestLocale(r), ai.PlanTextData{
 		Date: dc.Date, Weekday: dc.Weekday, Time: dc.Time, Timezone: dc.Timezone,
 		TargetDate: body.TargetDate, TargetWeekday: orDefault(body.TargetWeekday, dc.Weekday),
@@ -101,7 +132,7 @@ func (s *Server) handleAIPlanText(w http.ResponseWriter, r *http.Request) {
 		s.writeJSON(w, http.StatusOK, result)
 		return
 	}
-	attachBlocks(result, orDefault(body.TargetDate, body.Date))
+	attachBlocks(result, orDefault(body.TargetDate, dc.Date))
 	s.writeJSON(w, http.StatusOK, result)
 }
 
@@ -116,7 +147,8 @@ func (s *Server) handleAIPlanImage(w http.ResponseWriter, r *http.Request) {
 	//
 	// Safe to add: `sid` appears nowhere in this file — none of the three ever
 	// touched the session, so nothing depended on anonymous access.
-	if _, ok := s.requireSession(w, r); !ok {
+	sid, ok := s.requireSession(w, r)
+	if !ok {
 		return
 	}
 	if !s.requireAI(w, r) {
@@ -128,11 +160,8 @@ func (s *Server) handleAIPlanImage(w http.ResponseWriter, r *http.Request) {
 	var body struct {
 		ImageBase64 string `json:"imageBase64"`
 		MimeType    string `json:"mimeType"`
-		Date        string `json:"date"`
-		Weekday     string `json:"weekday"`
-		Time        string `json:"time"`
-		Timezone    string `json:"timezone"`
-		TargetDate  string `json:"targetDate"`
+		clientClock
+		TargetDate string `json:"targetDate"`
 	}
 	if err := s.readJSON(r, &body); err != nil {
 		s.writeErrL(w, s.requestLocale(r), http.StatusBadRequest, "bad_request", "err.aIPlanImage.bad_request")
@@ -150,7 +179,7 @@ func (s *Server) handleAIPlanImage(w http.ResponseWriter, r *http.Request) {
 	ctx, cancel := context.WithTimeout(r.Context(), s.runtime().AIRequestTimeout)
 	defer cancel()
 
-	dc := ai.BuildDateContext(body.Date, body.Weekday, body.Time, body.Timezone, s.requestLocale(r))
+	dc := s.clockContext(r.Context(), sid, body.clientClock, s.requestLocale(r))
 	sys, err := s.prompts.Render(ctx, ai.PromptDayPlanImage, s.requestLocale(r), ai.PlanImageData{
 		Date: dc.Date, Weekday: dc.Weekday, Time: dc.Time, Timezone: dc.Timezone,
 	})
@@ -183,7 +212,7 @@ func (s *Server) handleAIPlanImage(w http.ResponseWriter, r *http.Request) {
 		s.writeJSON(w, http.StatusOK, result)
 		return
 	}
-	attachBlocks(result, orDefault(body.TargetDate, body.Date))
+	attachBlocks(result, orDefault(body.TargetDate, dc.Date))
 	s.writeJSON(w, http.StatusOK, result)
 }
 
@@ -200,7 +229,8 @@ func (s *Server) handleAIExtractScheduleImage(w http.ResponseWriter, r *http.Req
 	//
 	// Safe to add: `sid` appears nowhere in this file — none of the three ever
 	// touched the session, so nothing depended on anonymous access.
-	if _, ok := s.requireSession(w, r); !ok {
+	sid, ok := s.requireSession(w, r)
+	if !ok {
 		return
 	}
 	if !s.requireAI(w, r) {
@@ -212,10 +242,7 @@ func (s *Server) handleAIExtractScheduleImage(w http.ResponseWriter, r *http.Req
 	var body struct {
 		ImageBase64 string `json:"imageBase64"`
 		MimeType    string `json:"mimeType"`
-		Date        string `json:"date"`
-		Weekday     string `json:"weekday"`
-		Time        string `json:"time"`
-		Timezone    string `json:"timezone"`
+		clientClock
 	}
 	if err := s.readJSON(r, &body); err != nil {
 		s.writeErrL(w, s.requestLocale(r), http.StatusBadRequest, "bad_request", "err.aIExtractScheduleImage.bad_request")
@@ -233,7 +260,7 @@ func (s *Server) handleAIExtractScheduleImage(w http.ResponseWriter, r *http.Req
 	ctx, cancel := context.WithTimeout(r.Context(), s.runtime().AIRequestTimeout)
 	defer cancel()
 
-	dc := ai.BuildDateContext(body.Date, body.Weekday, body.Time, body.Timezone, s.requestLocale(r))
+	dc := s.clockContext(r.Context(), sid, body.clientClock, s.requestLocale(r))
 	sys, err := s.prompts.Render(ctx, ai.PromptScheduleExtractImage, s.requestLocale(r), ai.PlanImageData{
 		Date: dc.Date, Weekday: dc.Weekday, Time: dc.Time, Timezone: dc.Timezone,
 	})

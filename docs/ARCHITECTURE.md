@@ -438,6 +438,31 @@ TimezoneSource  "user"（设置页）或 "detected"（客户端提示）
 
 这套「谁决定的」与「是什么」分开记的做法，`MoodCheckin.Source` 与 `TimeBlock.LockSource` 已经在用，理由相同。
 
+### AI 端点的钟表：提示是提示，不是答案（2026-09-18）
+
+ζ-4 把时区做成了每会话的值，但 **AI 端点当时并没有读它**：companion handler 把请求体里的 `timezone` 直接喂给提示词构造器。客户端不送时（四端的前端就是这样 —— `askCompanion` 根本不带这个字段）`time.LoadLocation("")` 失败，而兜底写的是 `time.UTC`。
+
+症状是所有者亲手碰到的：芝加哥 23:44 问「现在几点了」，陪伴回答「都四点四十了，你是还没睡？」—— 那是 UTC 的 04:44。
+
+同一个错误还有一个反向症状：请求体里的值**被当成答案**，于是设备在机场报一个时区，就盖掉了用户在设置页特意留的家乡时间 —— 与上面那张表里 `user + 收到提示 → 忽略` 正好相反。两个症状是一个错（把「客户端送来的」当答案，而不是提示），所以用一个入口关掉：
+
+```
+aiClockTimezone(ctx, sid, clientHint)   // 先记提示（规则不变），再返回会话自己的值
+```
+
+每一条 AI 路径（companion、异步 companion、plan、auto-plan）都从这里取钟表，并且**不得**把请求字段再传给下游：传下去会让 `tool_plan.go` 把空值写成块时区 `"UTC"`、让 `tool_capture.go` 按 UTC 记心情的日键。
+
+判据在 `internal/server/ai_clock_test.go`，断言的是**模型实际收到的请求体**而不是内部函数 —— 缺陷在接线处，只测 `sessionTimezone` 的测试对这个 bug 全程绿灯：
+
+| 输入 | 模型必须被告知 |
+|---|---|
+| 会话记得 `America/Chicago`，客户端什么都不送 | 芝加哥的今天 |
+| 会话没有任何时区，客户端什么都不送 | 部署默认（`WORKER_DEFAULT_TZ`），**不是** UTC |
+| 客户端送 `Europe/Berlin` | 柏林，且这次之后会话也记住了 |
+| 用户在设置页选了东京，客户端送柏林 | 东京（提示不许覆盖用户） |
+
+⚠️ 客户端那个字段的**定位没变**，仍然是「只有设备知道」的那个提示；变的是**下游读谁**。新加 AI 端点照这条接：提示进 `aiClockTimezone`，时钟从它出来。
+
 ### 改了时区必须当场重排 cron
 
 cron 条目里编着**旧时区**的 `CRON_TZ`。一个存了但 cron 不反映的时区是个没人读的值。所以 `PATCH /api/session/preferences` 与 `noteClientTimezone` 都会调 `ScheduleUser` —— 而它先摘旧条目再挂新的（ζ-1 那一批教会它的），否则同一份早报会按两个时区各发一次。

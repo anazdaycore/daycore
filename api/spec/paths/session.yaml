@@ -7,7 +7,14 @@
       Optional body {"tokenInBody":true} adds "sessionToken" (the same signed
       value as the dc_sid cookie) to the response for clients without a cookie
       jar; send it back as the X-Session-Token header.
-    requestBody: { required: false, content: { application/json: { schema: { type: object, properties: { tokenInBody: { type: boolean } } } } } }
+
+      "timezone" is the device's IANA zone. First contact is the cheapest place
+      to learn it and the most important one: the cron entries that fire the
+      morning brief, the petrify line, the rhythm day key and every AI clock are
+      all derived from the session's zone (docs/ARCHITECTURE.md 「每会话时区」).
+      Best-effort — an unknown name is ignored rather than refused, and a session
+      that never gets one keeps the deployment default (WORKER_DEFAULT_TZ).
+    requestBody: { required: false, content: { application/json: { schema: { type: object, properties: { tokenInBody: { type: boolean }, timezone: { type: string, example: America/Chicago } } } } } }
     responses: { '200': { description: "OK (Session; + sessionToken when tokenInBody)", content: { application/json: { schema: { $ref: '#/components/schemas/Session' } } } } }
 /api/session/theme:
   post:

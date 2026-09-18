@@ -24,7 +24,8 @@ func (s *Server) handleSessionInit(w http.ResponseWriter, r *http.Request) {
 	// the response for clients without a cookie jar (native apps). Best-effort
 	// parse — the endpoint has always accepted an empty body.
 	var body struct {
-		TokenInBody bool `json:"tokenInBody"`
+		TokenInBody bool   `json:"tokenInBody"`
+		Timezone    string `json:"timezone"`
 	}
 	_ = s.readJSON(r, &body)
 	sid := sessionIDFrom(r.Context())
@@ -42,6 +43,17 @@ func (s *Server) handleSessionInit(w http.ResponseWriter, r *http.Request) {
 		s.writeErrL(w, s.requestLocale(r), http.StatusInternalServerError, "internal", "err.sessionInit.internal2")
 		return
 	}
+	// First contact is the cheapest place to learn the device's zone and the most
+	// important one: every clock the server runs for this session is derived from
+	// it — the cron entries that fire the morning brief, the petrify line, the
+	// rhythm day key, the companion's own clock. A client that never sends it keeps
+	// the deployment default, which is only correct for someone in the operator's
+	// own zone.
+	//
+	// Best-effort and never fatal: a session with no zone is exactly as broken as
+	// it was a moment ago (see session_timezone.go).
+	s.noteClientTimezone(r.Context(), sid, body.Timezone)
+
 	// First contact: adopt the browser's language so prompts and AI replies
 	// match the user before they ever open settings.
 	if sess.Language == "" {

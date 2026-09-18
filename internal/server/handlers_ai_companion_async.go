@@ -141,7 +141,6 @@ func (s *Server) handleAICompanionAsync(w http.ResponseWriter, r *http.Request) 
 
 	// Pre-generate both IDs: mongostore's AppendMessages does not write
 	// generated IDs back to the caller's slice.
-	s.noteClientTimezone(r.Context(), sid, body.Timezone)
 	s.noteClientLocation(r.Context(), sid, body.Location)
 	atts, aerr := s.resolveAttachments(r.Context(), sid, body.AttachmentIDs)
 	if aerr != nil {
@@ -167,7 +166,9 @@ func (s *Server) handleAICompanionAsync(w http.ResponseWriter, r *http.Request) 
 	clientIP := s.clientIP(r) // capture now — r dies with the request
 	threadID := body.ThreadID
 	userMsg := body.Message
-	tz := body.Timezone
+	// Same rule as the streaming handler (see aiClockTimezone) — and resolved HERE
+	// because r dies with the request while the goroutine below outlives it.
+	tz := s.aiClockTimezone(r.Context(), sid, body.Timezone)
 
 	s.GoTracked(func() {
 		ctx, cancel := context.WithTimeout(context.Background(), s.runtime().AIRequestTimeout)
