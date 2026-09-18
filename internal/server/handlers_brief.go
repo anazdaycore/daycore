@@ -1,6 +1,7 @@
 package server
 
 import (
+	"errors"
 	"net/http"
 	"time"
 
@@ -49,7 +50,14 @@ func (s *Server) handleBrief(w http.ResponseWriter, r *http.Request) {
 	today := time.Now().In(s.sessionLocation(ctx, sid)).Format("2006-01-02")
 
 	plan, err := s.store.DayPlans().Get(ctx, sid, today)
-	if err != nil && err != domain.ErrNotFound {
+	if errors.Is(err, domain.ErrNotFound) {
+		// ⚠️ No row yet is the NORMAL case, not an edge one: every account
+		// starts with no rows, and so does every day before its first plan
+		// write. Tolerating the error and then reading plan.Blocks panicked on
+		// exactly that state — the empty branch below was unreachable and the
+		// endpoint 500'd when it was supposed to be at its gentlest.
+		plan = &domain.DayPlan{SessionID: sid, Date: today, SourceType: "rules"}
+	} else if err != nil {
 		s.writeErrL(w, locale, http.StatusInternalServerError, "internal", "err.brief.internal")
 		return
 	}
