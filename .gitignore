@@ -84,3 +84,7 @@ demo.db*
 .tmp-*
 Daycore前端 (1)/
 
+# 一次性会话导出（Claude Code 与 DSH 的 daycore 会话）。刻意不带点前缀：点开头
+# 的目录 VS Code 侧栏默认不显示，而这份就是给人翻的。仍然不入库。
+/export-daycore/
+
